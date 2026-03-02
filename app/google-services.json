@@ -15,7 +15,8 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAmuq6xbf2S6l_BOhratPZzMMRSSDA6_Ww"
+          //Need to change for running app.
+          "current_key": "API key"
         }
       ],
       "services": {
