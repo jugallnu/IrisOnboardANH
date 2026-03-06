@@ -45,6 +45,23 @@ class DeviceRegistrationManager(private val context: Context) {
     }
 
     /**
+     * Converts an MSA OID (format 00000000-0000-0000-HHHH-HHHHHHHHHHHH) to PUIDINT.
+     * The PUID is encoded in the last two GUID groups as a 64-bit unsigned integer.
+     * Example: 00000000-0000-0000-0d6d-bdf8171451fd → 959728586995171837
+     */
+    private fun oidToPuidInt(oid: String): String? {
+        return try {
+            val parts = oid.split("-")
+            if (parts.size != 5) return null
+            val hexPuid = parts[3] + parts[4]   // 4 + 12 hex chars = 8 bytes
+            java.lang.Long.toUnsignedString(java.lang.Long.parseUnsignedLong(hexPuid, 16))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to convert OID to PUIDINT: $oid", e)
+            null
+            }
+    }
+
+    /**
      * Sends FCM token, userId, installationId and locale to the Azure Function.
      * The function acquires the ICP partner token via Managed Identity and
      * calls the ANH consumer V2 registration API.
@@ -54,10 +71,11 @@ class DeviceRegistrationManager(private val context: Context) {
             try {
                 val installationId = getInstallationId()
                 val locale = Locale.getDefault().toLanguageTag()
+                val puidInt = userId?.let { oidToPuidInt(it) }
 
                 val payload = JSONObject().apply {
                     put("fcmToken",       fcmToken)
-                    put("userId",         userId)
+                    put("userId",         puidInt)
                     put("installationId", installationId)
                     put("platform",       PLATFORM)
                     put("locale",         locale)
@@ -67,7 +85,8 @@ class DeviceRegistrationManager(private val context: Context) {
                 Log.i(TAG, "REGISTRATION PAYLOAD")
                 Log.i(TAG, "  endpoint      : $ENDPOINT_URL")
                 Log.i(TAG, "  fcmToken      : $fcmToken")
-                Log.i(TAG, "  userId        : $userId")
+                Log.i(TAG, "  userId (oid)  : $userId")
+                Log.i(TAG, "  userId (puid) : $puidInt")
                 Log.i(TAG, "  installationId: $installationId")
                 Log.i(TAG, "  platform      : $PLATFORM")
                 Log.i(TAG, "  locale        : $locale")

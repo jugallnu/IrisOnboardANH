@@ -1,4 +1,3 @@
-using Azure.Core;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -13,13 +12,13 @@ namespace DeviceRegistration;
 public class DeviceRegistrationFunction(ILogger<DeviceRegistrationFunction> logger, IHttpClientFactory httpClientFactory, RateLimiterService rateLimiter)
 {
     // ── ICP / ANH configuration — set these in Azure Function App Settings ────
-    private static readonly string PartnerId             = Environment.GetEnvironmentVariable("PARTNER_ID")               ?? "IrisStudioTest";
-    private static readonly string AnhAccountName        = Environment.GetEnvironmentVariable("ANH_ACCOUNT_NAME")         ?? "IrisMobileAndroidANH";
-    private static readonly string PartnerTenantId       = Environment.GetEnvironmentVariable("PARTNER_TENANT_ID")        ?? "cdc5aeea-15c5-4db6-b079-fcadd2505dc2";
-    private static readonly string PartnerClientId       = Environment.GetEnvironmentVariable("PARTNER_CLIENT_ID")        ?? "6a708da6-fc30-4c55-886e-ba54322b1c9c";
+    private static readonly string PartnerId = Environment.GetEnvironmentVariable("PARTNER_ID") ?? "IrisStudioCore";
+    private static readonly string AnhAccountName = Environment.GetEnvironmentVariable("ANH_ACCOUNT_NAME") ?? "IrisMobileAndroidANH";
+    private static readonly string PartnerTenantId = Environment.GetEnvironmentVariable("PARTNER_TENANT_ID") ?? "cdc5aeea-15c5-4db6-b079-fcadd2505dc2";
+    private static readonly string PartnerClientId = Environment.GetEnvironmentVariable("PARTNER_CLIENT_ID") ?? "a244d522-7dae-4c17-b377-574077bae6b4";
     private static readonly string ManagedIdentityClientId = Environment.GetEnvironmentVariable("MANAGED_IDENTITY_CLIENT_ID") ?? "6293a03f-aa3d-41b6-81f8-2ee2ea752e27";
-    private static readonly string RegisterUrl           = "https://mucp.api.account.microsoft.com/applications/v2/anhregister";
-    private static readonly List<string> PartnerScope    = new List<string>() { "https://mucp.api.account.microsoft.com/.default" };
+    private static readonly string RegisterUrl = "https://mucp.api.account.microsoft.com/applications/v2/anhregister";
+    private static readonly List<string> PartnerScope = new List<string>() { "https://mucp.api.account.microsoft.com/.default" };
     // ─────────────────────────────────────────────────────────────────────────
 
     [Function("RegisterDeviceWithANH")]
@@ -42,12 +41,12 @@ public class DeviceRegistrationFunction(ILogger<DeviceRegistrationFunction> logg
             return await BadRequest(req, "Invalid JSON body.");
         }
 
-        if (string.IsNullOrWhiteSpace(body?.FcmToken))       return await BadRequest(req, "fcmToken is required.");
-        if (string.IsNullOrWhiteSpace(body?.UserId))          return await BadRequest(req, "userId is required.");
-        if (string.IsNullOrWhiteSpace(body?.InstallationId))  return await BadRequest(req, "installationId is required.");
-        if (string.IsNullOrWhiteSpace(body?.Platform))        return await BadRequest(req, "platform is required.");
-        if (body.Platform is not "FcmV1" and not "Apns")      return await BadRequest(req, "platform must be 'FcmV1' (Android) or 'Apns' (iOS).");
-        
+        if (string.IsNullOrWhiteSpace(body?.FcmToken)) return await BadRequest(req, "fcmToken is required.");
+        if (string.IsNullOrWhiteSpace(body?.UserId)) return await BadRequest(req, "userId is required.");
+        if (string.IsNullOrWhiteSpace(body?.InstallationId)) return await BadRequest(req, "installationId is required.");
+        if (string.IsNullOrWhiteSpace(body?.Platform)) return await BadRequest(req, "platform is required.");
+        if (body.Platform is not "FcmV1" and not "Apns") return await BadRequest(req, "platform must be 'FcmV1' (Android) or 'Apns' (iOS).");
+
         //Add rate limit
         var clientIp = GetClientIp(req);
         if (!rateLimiter.IsAllowed(clientIp))
@@ -88,21 +87,21 @@ public class DeviceRegistrationFunction(ILogger<DeviceRegistrationFunction> logg
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to acquire partner token");
-            return await InternalError(req, "Failed to acquire partner token.");
+            return await InternalError(req, $"Failed to acquire partner token.{ex}");
         }
 
         // 3. Call ICP ANH registration API
-        var correlationId   = Guid.NewGuid().ToString();
+        var correlationId = Guid.NewGuid().ToString();
         var clientRequestId = Guid.NewGuid().ToString();
 
         var anhPayload = new
         {
-            accountName    = AnhAccountName,
-            platform       = body.Platform,
+            accountName = AnhAccountName,
+            platform = body.Platform,
             installationId = body.InstallationId,
-            handle         = body.FcmToken,
-            locale         = locale,
-            userId         = body.UserId
+            handle = body.FcmToken,
+            locale = locale,
+            userId = body.UserId
         };
 
         logger.LogInformation(
@@ -116,7 +115,7 @@ public class DeviceRegistrationFunction(ILogger<DeviceRegistrationFunction> logg
             Content = new StringContent(JsonSerializer.Serialize(anhPayload), Encoding.UTF8, "application/json")
         };
         anhRequest.Headers.TryAddWithoutValidation("Authorization", authHeader);
-        anhRequest.Headers.Add("MS-CV",             correlationId);
+        anhRequest.Headers.Add("MS-CV", correlationId);
         anhRequest.Headers.Add("client-request-id", clientRequestId);
 
         HttpResponseMessage anhResponse;
@@ -191,5 +190,5 @@ public record RegistrationRequest(
     string? FcmToken,
     string? UserId,
     string? InstallationId,
-    string? Platform, 
+    string? Platform,
     string? Locale);

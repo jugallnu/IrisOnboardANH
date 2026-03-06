@@ -18,10 +18,10 @@ public sealed class RateLimiterService : IDisposable
         _limiter = PartitionedRateLimiter.Create<string, string>(key =>
             RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit          = permitLimit,
-                Window               = TimeSpan.FromSeconds(windowSeconds),
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromSeconds(windowSeconds),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit           = 0    // reject immediately, no queuing
+                QueueLimit = 0    // reject immediately, no queuing
             }));
     }
 
