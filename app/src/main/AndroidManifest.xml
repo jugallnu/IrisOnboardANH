@@ -36,7 +36,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:host="microsoft.amaurya.iris.jugal"
+                    android:host="mobile.iris.consumer"
                     android:path="/q1ZuSDiheQnSHl3fNRDsAM2XgFk="
                     android:scheme="msauth" />
             </intent-filter>

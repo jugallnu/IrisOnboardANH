@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "microsoft.amaurya.iris.jugal"
+    namespace = "mobile.iris.consumer"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "microsoft.amaurya.iris.jugal"
+        applicationId = "mobile.iris.consumer"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

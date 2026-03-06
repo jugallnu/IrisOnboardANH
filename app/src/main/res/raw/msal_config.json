@@ -1,15 +1,12 @@
 {
-  "client_id" : "e4f53869-e2ef-4b7c-9da9-2db67ccbb916",
+  "client_id" : "927ab53a-ad10-45af-b03f-52061002edc3",
   "authorization_user_agent" : "DEFAULT",
-  "redirect_uri" : "msauth://microsoft.amaurya.iris.jugal/q1ZuSDiheQnSHl3fNRDsAM2XgFk%3D",
-  "account_mode" : "SINGLE",
-  "broker_redirect_uri_registered": true,
+  "redirect_uri" : "msauth://mobile.iris.consumer/q1ZuSDiheQnSHl3fNRDsAM2XgFk%3D",
   "authorities" : [
     {
       "type": "AAD",
       "audience": {
-        "type": "AzureADMyOrg",
-        "tenant_id": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        "type": "PersonalMicrosoftAccount"
       }
     }
   ]
