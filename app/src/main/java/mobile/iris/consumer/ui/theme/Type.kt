@@ -1,4 +1,4 @@
-package microsoft.amaurya.iris.jugal.ui.theme
+package mobile.iris.consumer.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

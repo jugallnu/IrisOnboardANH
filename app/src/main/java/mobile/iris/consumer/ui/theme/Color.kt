@@ -1,4 +1,4 @@
-package microsoft.amaurya.iris.jugal.ui.theme
+package mobile.iris.consumer.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

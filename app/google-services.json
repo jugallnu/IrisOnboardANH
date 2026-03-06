@@ -7,16 +7,15 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:335775337722:android:85ba5070b8c4584c3acd43",
+        "mobilesdk_app_id": "1:335775337722:android:c52b8ace088a15913acd43",
         "android_client_info": {
-          "package_name": "microsoft.amaurya.iris.jugal"
+          "package_name": "mobile.iris.consumer"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          //Need to change for running app.
-          "current_key": "API key"
+          "current_key": "AIzaSyAmuq6xbf2S6l_BOhratPZzMMRSSDA6_Ww"
         }
       ],
       "services": {

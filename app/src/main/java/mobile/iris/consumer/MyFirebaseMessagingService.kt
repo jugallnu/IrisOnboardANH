@@ -1,4 +1,4 @@
-package microsoft.amaurya.iris.jugal
+package mobile.iris.consumer
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

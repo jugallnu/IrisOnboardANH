@@ -1,4 +1,4 @@
-package microsoft.amaurya.iris.jugal
+package mobile.iris.consumer
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -43,28 +43,27 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessaging
-import microsoft.amaurya.iris.jugal.ui.theme.IrisOnboardANHTheme
+import mobile.iris.consumer.ui.theme.IrisOnboardANHTheme
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MainActivity"
     private lateinit var msalAuthManager: MsalAuthManager
-    private lateinit var anhRegistrationManager: AnhRegistrationManager
+    private lateinit var deviceRegistrationManager: DeviceRegistrationManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize MSAL Auth Manager
         msalAuthManager = MsalAuthManager(this)
-        anhRegistrationManager = AnhRegistrationManager(this)
-        
+        deviceRegistrationManager = DeviceRegistrationManager(this)
+
         enableEdgeToEdge()
         setContent {
             IrisOnboardANHTheme {
-                var registrationId by remember { mutableStateOf("Fetching...") }
+                var fcmToken by remember { mutableStateOf("Fetching...") }
                 var userInfo by remember { mutableStateOf<UserInfo?>(null) }
                 var isLoading by remember { mutableStateOf(false) }
                 var isMsalInitialized by remember { mutableStateOf(false) }
-                var anhRegistrationStatus by remember { mutableStateOf<String?>(null) }
+                var registrationStatus by remember { mutableStateOf<String?>(null) }
                 val context = LocalContext.current
                 val activity = this
 
@@ -77,7 +76,6 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(Unit) {
-                    // Initialize MSAL
                     msalAuthManager.initialize(
                         onSuccess = {
                             isMsalInitialized = true
@@ -89,7 +87,6 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
-                    // Request Notification Permission for Android 13+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                             PackageManager.PERMISSION_GRANTED
@@ -101,66 +98,35 @@ class MainActivity : ComponentActivity() {
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                         if (!task.isSuccessful) {
                             Log.w(TAG, "Fetching FCM registration token failed", task.exception)
-                            registrationId = "Error fetching token"
+                            fcmToken = "Error fetching token"
                             return@addOnCompleteListener
                         }
-
-                        val token = task.result
-                        registrationId = token
-                        Log.d(TAG, "FCM Registration ID: $token")
+                        fcmToken = task.result
+                        Log.d(TAG, "FCM Registration ID: $fcmToken")
                     }
                 }
 
-                // Trigger ANH registration once both FCM token and user are available
-                LaunchedEffect(userInfo, registrationId) {
+                // Trigger registration once both FCM token and user are available
+                LaunchedEffect(userInfo, fcmToken) {
                     val info = userInfo ?: return@LaunchedEffect
-                    if (registrationId == "Fetching..." || registrationId == "Error fetching token") return@LaunchedEffect
+                    if (fcmToken == "Fetching..." || fcmToken == "Error fetching token") return@LaunchedEffect
 
-                    anhRegistrationStatus = "Registering..."
+                    registrationStatus = "Registering..."
 
-                    // Acquire a JWE token from AAD for the ICP registration resource.
-                    // The token contains aud, tid, and oid claims required by the API.
-                    val jweToken = runCatching {
-                        msalAuthManager.acquireJweTokenForRegistration()
-                    }.getOrElse { e ->
-                        Log.e(TAG, "Failed to acquire JWE token", e)
-                        when (e) {
-                            is SessionExpiredException -> {
-                                // Sign-in frequency CA policy — user has been signed out.
-                                // Registration already completed previously so no action needed.
-                                userInfo = null
-                                anhRegistrationStatus = null
-                            }
-                            is BrokerSignInRequiredException -> {
-                                // The previous session bypassed the Authenticator broker and the
-                                // local cache has now been cleared. Prompt the user to sign in
-                                // again — MSAL will route through the broker this time, which
-                                // passes device compliance state to AAD.
-                                userInfo = null
-                                anhRegistrationStatus = null
-                                Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
-                            }
-                            else -> {
-                                anhRegistrationStatus = "Failed: ${e.message}"
-                            }
-                        }
-                        return@LaunchedEffect
-                    }
-
-                    val result = anhRegistrationManager.register(
-                        fcmToken = registrationId,
-                        jweToken = jweToken
+                    val result = deviceRegistrationManager.register(
+                        fcmToken = fcmToken,
+                        userId  = info.userId
                     )
-                    anhRegistrationStatus = if (result.isSuccess) "Registered" else "Failed: ${result.exceptionOrNull()?.message}"
+                    registrationStatus = if (result.isSuccess) "Registered" else "Failed: ${result.exceptionOrNull()?.message}"
                 }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainContent(
-                        fcmToken = registrationId,
+                        fcmToken = fcmToken,
                         userInfo = userInfo,
                         isLoading = isLoading,
                         isMsalInitialized = isMsalInitialized,
-                        anhRegistrationStatus = anhRegistrationStatus,
+                        registrationStatus = registrationStatus,
                         onSignIn = {
                             isLoading = true
                             msalAuthManager.signIn(
@@ -168,7 +134,7 @@ class MainActivity : ComponentActivity() {
                                 onSuccess = { info ->
                                     userInfo = info
                                     isLoading = false
-                                    Toast.makeText(context, "Welcome ${info.displayName}!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Welcome ${info.name ?: info.email}!", Toast.LENGTH_SHORT).show()
                                 },
                                 onError = { error ->
                                     isLoading = false
@@ -185,6 +151,7 @@ class MainActivity : ComponentActivity() {
                             msalAuthManager.signOut(
                                 onSuccess = {
                                     userInfo = null
+                                    registrationStatus = null
                                     isLoading = false
                                     Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
                                 },
@@ -208,7 +175,7 @@ fun MainContent(
     userInfo: UserInfo?,
     isLoading: Boolean,
     isMsalInitialized: Boolean,
-    anhRegistrationStatus: String?,
+    registrationStatus: String?,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier
@@ -222,7 +189,6 @@ fun MainContent(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Microsoft Login Section
         MicrosoftLoginCard(
             userInfo = userInfo,
             isLoading = isLoading,
@@ -231,12 +197,10 @@ fun MainContent(
             onSignOut = onSignOut
         )
 
-        // ANH Registration Status (visible after sign-in)
-        if (anhRegistrationStatus != null) {
-            AnhRegistrationCard(status = anhRegistrationStatus)
+        if (registrationStatus != null) {
+            RegistrationStatusCard(status = registrationStatus)
         }
 
-        // FCM Token Section
         FcmTokenCard(token = fcmToken)
     }
 }
@@ -264,35 +228,23 @@ fun MicrosoftLoginCard(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             if (isLoading) {
                 CircularProgressIndicator()
             } else if (userInfo != null) {
-                // Signed in state
                 Text(
-                    text = "Welcome!",
+                    text = "Welcome ${userInfo.name ?: userInfo.email}.",
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF0078D4)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = userInfo.displayName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = userInfo.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedButton(onClick = onSignOut) {
                     Text("Sign Out")
                 }
             } else {
-                // Signed out state
                 Text(
                     text = "Sign in with your Microsoft account",
                     style = MaterialTheme.typography.bodyMedium,
@@ -322,7 +274,7 @@ fun MicrosoftLoginCard(
 }
 
 @Composable
-fun AnhRegistrationCard(status: String) {
+fun RegistrationStatusCard(status: String) {
     val isRegistered = status == "Registered"
     val isRegistering = status == "Registering..."
 
@@ -337,7 +289,7 @@ fun AnhRegistrationCard(status: String) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "ANH Registration",
+                text = "Device Registration",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
